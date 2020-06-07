@@ -1,73 +1,90 @@
-<?php require_once 'dbconnect.php'; ?>
-<!DOCTYPE html>
-<html>
-<head>
-	<title>CRUD</title>
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+const express = require("express");
+const bodyParser = require("body-parser");
+const app = express();
+const mysql = require("mysql");
 
-</head>
-<body>
-	<div class="container">
-		<?php if (isset($_SESSION['msg'])) : ?>
-			<div class="alert alert-<?php echo $_SESSION['type']; ?>">
-				<?php
-					echo $_SESSION['msg'];
-					unset($_SESSION['msg']);
-				 ?>
-			</div>
-		<?php endif; ?>
-		<!-- Table -->
-		<div class="row">
-			<?php 
-				$mysqli = new mysqli("localhost","root","","crud") or die(mysqli_error());
-				$result = $mysqli->query("SELECT * FROM users") or die($mysqli->error);
-			?>
-			<table class="table">
-				<thead class="thead-light">
-					<tr>
-						<th>Name</th>
-						<th>Location</th>
-						<th>Actions</th>
-					</tr>
-				</thead>
+// parse application/json
+app.use(bodyParser.json());
 
-				<?php while ($row = $result->fetch_array()) : ?>
-					<tr>
-						<td><?php echo $row["name"]; ?></td>
-						<td><?php echo $row["location"]; ?></td>
-						<td>
-							<a href="index.php?edit=<?php echo $row['id']; ?>" class="btn btn-secondary">Edit</a>
-							<a href="index.php?delete=<?php echo $row['id']; ?>" class="btn btn-danger">Delete</a>
-						</td>
-					</tr>
-				<?php endwhile; ?>
-			</table>
-		</div>
+// Add headers
+app.use(function (req, res, next) {
+	// Website you wish to allow to connect
+	res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
 
+	// Request methods you wish to allow
+	res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
 
-		<!-- Insert Form -->
-		<div class="row justify-content-center">
-			<form action="dbconnect.php" method="POST">
-				<input type="text" name="id" value="<?php echo $id; ?>" hidden >
-				<div class="form-group">
-					<label>Enter the Name</label>
-					<input class="form-control" value="<?php echo $name; ?>" type="text" name="name" placeholder="Enter the name">
-				</div>
-				<div class="form-group">
-					<label>Enter the location</label>
-					<input class="form-control" value="<?php echo $location; ?>" type="text" name="location" placeholder="enter the location">
-				</div>
-				<div class="form-group">
-					<?php if ($update == true) : ?>
-					<button class="btn btn-primary" type="submit" name="update">Update</button>
-					<?php else : ?>
-					<button class="btn btn-primary" name="save" type="submit">Save</button>
+	// Request headers you wish to allow
+	res.setHeader("Access-Control-Allow-Headers", "X-Requested-With,content-type");
 
-				<?php endif; ?>
-				</div>
-			</form>
-		</div>
-	</div>
+	// Set to true if you need the website to include cookies in the requests sent
+	// to the API (e.g. in case you use sessions)
+	res.setHeader("Access-Control-Allow-Credentials", true);
 
-</body>
-</html>
+	// Pass to next layer of middleware
+	next();
+});
+
+//Create Database Connection
+const conn = mysql.createConnection({
+	host: "localhost",
+	user: "root",
+	password: "",
+	database: "crud",
+});
+
+// connect to database
+conn.connect((err) => {
+	if (err) throw err;
+	console.log("MySQL connected");
+});
+
+// creat a new Record
+app.post("/api/create", (req, res) => {
+	let data = { name: req.body.name, location: req.body.location };
+	let sql = "INSERT INTO users SET ?";
+	let query = conn.query(sql, data, (err, result) => {
+		if (err) throw err;
+		res.send(JSON.stringify({ status: 200, error: null, response: "New Record is Added successfully" }));
+	});
+});
+
+// show all records
+app.get("/api/view", (req, res) => {
+	let sql = "SELECT * FROM users";
+	let query = conn.query(sql, (err, result) => {
+		if (err) throw err;
+		res.send(JSON.stringify({ status: 200, error: null, response: result }));
+	});
+});
+
+// show a single record
+app.get("/api/view/:id", (req, res) => {
+	let sql = "SELECT * FROM users WHERE id=" + req.params.id;
+	let query = conn.query(sql, (err, result) => {
+		if (err) throw err;
+		res.send(JSON.stringify({ status: 200, error: null, response: result }));
+	});
+});
+
+// delete the record
+app.delete("/api/delete/:id", (req, res) => {
+	let sql = "DELETE FROM users WHERE id=" + req.params.id + "";
+	let query = conn.query(sql, (err, result) => {
+		if (err) throw err;
+		res.send(JSON.stringify({ status: 200, error: null, response: "Record deleted successfully" }));
+	});
+});
+
+// update the Record
+app.put("/api/update/", (req, res) => {
+	let sql = "UPDATE users SET name='" + req.body.name + "', location='" + req.body.location + "' WHERE id=" + req.body.id;
+	let query = conn.query(sql, (err, result) => {
+		if (err) throw err;
+		res.send(JSON.stringify({ status: 200, error: null, response: "Record updated SuccessFully" }));
+	});
+});
+
+app.listen(8000, () => {
+	console.log("server started on port 8000...");
+});
